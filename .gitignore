@@ -9,8 +9,9 @@ __pycache__/
 .venv/
 venv/
 
-# Compiled documents
+# Compiled and generated documents
 *.pdf
+*.docx
 *.aux
 *.log
 *.out
@@ -57,7 +58,20 @@ documents/linkedin/**
 documents/diplomas/**
 documents/references/**
 documents/applications/**
+documents/private/**
+documents/playbook/**
+documents/library/**
+documents/portals/**
 !documents/**/.gitkeep
+
+# Workspace output — personal, never shared
+opportunities/**
+interviews/**
+outreach/**
+!**/.gitkeep
+
+# Candidate identity for the document builders (written by /setup)
+cv/candidate.json
 
 # Personal job search tracking
 job_search_tracker.csv

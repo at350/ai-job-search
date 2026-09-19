@@ -1,0 +1,8 @@
+{
+  "name": "ai-job-search",
+  "private": true,
+  "description": "Document builders for the job application workspace",
+  "dependencies": {
+    "docx": "^9.7.1"
+  }
+}
