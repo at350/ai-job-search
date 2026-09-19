@@ -32,7 +32,7 @@ Does work history align with what they're looking for?
 
 **Strong:** [YOUR_DIRECT_EXPERIENCE_DOMAINS]
 **Moderate:** [YOUR_ADJACENT_EXPERIENCE]
-**Entry-level:** [ROLES_WITH_LIMITED_EXPERIENCE]
+**Entry-level (limited direct experience):** [ROLES_WITH_LIMITED_EXPERIENCE]
 
 ### 3. Behavioral/Culture Fit (0-100)
 Does the role and company culture match the behavioral profile?
@@ -47,9 +47,12 @@ Does the role and company culture match the behavioral profile?
 **Red flags to research:** Department disorganization, work dominated by maintenance over development, poor chemistry with leadership, culture mismatches. Check reviews, media coverage, LinkedIn connections, and network contacts for insider perspective.
 
 ### 4. Location & Logistics (Pass/Fail + Notes)
+Match the deal-breakers in CLAUDE.md exactly, and treat any window the user has named as a targeted search window rather than a conflict.
 - Within commute range: PASS
 - Remote with occasional office: PASS
-- Requires relocation: FAIL (deal-breaker)
+- Requires relocation inside a window the user targets for an internship: PASS
+- Requires relocation outside every window the user is available for: FAIL (deal-breaker)
+- In-person requirement outside the user's stated geography: FAIL (deal-breaker)
 - Frequent international travel: FLAG (discuss with user)
 
 ### 5. Career Alignment & Motivation (0-100)
@@ -62,20 +65,21 @@ Does this role advance career goals and contain tasks that energize?
 | 40-59 | Decent job but doesn't build toward career goals |
 | 0-39 | Dead end or backwards step |
 
-**Career goals:**
-- [YOUR_CAREER_GOAL_1]
-- [YOUR_CAREER_GOAL_2]
-- [YOUR_CAREER_GOAL_3]
+**Career goals:** populated by `/setup` from what the user says they want.
+- [TARGET_ROLE_TYPES_AND_WINDOWS]
+- [EXPERTISE_THE_USER_IS_BUILDING]
+- [KIND_OF_ENVIRONMENT_THEY_WANT]
+- [LONG_TERM_DIRECTION_SIGNALS]
 
 **Motivation filter:** Evaluate not just whether you *can* do the tasks, but whether the tasks will *energize* you. Consider:
-- Tasks that energize: [YOUR_ENERGIZING_TASKS]
-- Tasks that drain: [YOUR_DRAINING_TASKS]
-- Non-task factors: leadership style, department culture, company values, degree of autonomy
+- Tasks that energize: [FILL_FROM_SETUP]
+- Tasks that drain (inferred, the user should validate): [FILL_FROM_SETUP]
+- Non-task factors: leadership style, department culture, company values, degree of autonomy. Record recurring fit signals here as they show up in real evaluations.
 
-**Life situation alignment:** Consider personal constraints:
-- **Security**: [YOUR_FINANCIAL_SITUATION_CONTEXT]
-- **Flexibility**: [YOUR_SCHEDULE_CONSTRAINTS]
-- **Professional development**: [YOUR_GROWTH_PRIORITIES]
+**Life situation alignment:** Consider personal constraints, from the candidate profile:
+- **Security**: pay expectations and whether unpaid or equity-only roles are viable at this career stage.
+- **Flexibility**: which months the user is available in person, where, and which windows are already targeted for an internship. Note the school calendar so summer availability dates are exact.
+- **Professional development**: how much mentorship and ownership the role really offers.
 
 ### 6. Salary Benchmark (Optional)
 
@@ -129,7 +133,7 @@ Present the evaluation as:
 
 ### Company Research Checklist
 - [ ] Checked company website (mission, values, recent news)
-- [ ] Checked review sites (Glassdoor, Jobindex, etc.)
+- [ ] Checked review sites (Glassdoor, Levels.fyi, Blind, etc.)
 - [ ] Checked LinkedIn for team size, recent hires, connections
 - [ ] Checked media for restructuring, growth, or workplace issues
 - [ ] Identified network contacts who may know the team/manager
@@ -171,3 +175,9 @@ Before writing the application, consider whether the candidate should call the c
 - The call's purpose is **gathering information**, not delivering a pitch
 - Take notes - use what you learn to tailor the application
 - Reference the conversation naturally in the cover letter ("After speaking with [name], I was especially drawn to...")
+
+---
+
+## Employer-specific state does not live here
+
+This file is the scoring framework only. Submitted requisitions, closed programs, graduation-gate findings for a specific employer, and portal enumeration notes belong in `opportunities/opportunities-state.md` and the application folders under `documents/applications/`, per the Repo Structure section of CLAUDE.md. Do not add an employer block to this file.

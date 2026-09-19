@@ -8,7 +8,9 @@ An AI-powered job application framework built on [Claude Code](https://claude.co
 
 ## What this is
 
-A structured workflow that turns Claude Code into a full-stack job application assistant. The core workflow (self-profiling, fit evaluation, and the drafter-reviewer application pipeline) is **language- and country-agnostic**. The job portal search skills are built for the Danish market (Jobindex, Jobnet, Akademikernes Jobbank, etc.), but the pattern is designed to be swapped for your local job boards.
+A structured workflow that turns Claude Code into a full-stack job application assistant. The core workflow (self-profiling, fit evaluation, and the evidence-gated application pipeline) is **language- and country-agnostic**. The job portal search skills are built for the Danish market (Jobindex, Jobnet, Akademikernes Jobbank, etc.), but the pattern is designed to be swapped for your local job boards.
+
+Every document is built as a `.docx`, rendered to PDF, and mechanically verified before you are asked to approve it. Nothing reaches an employer that a verifier has not read in its rendered form.
 
 ```
 /setup          /scrape              /apply <url>
@@ -18,12 +20,8 @@ Fill in        Search job           Evaluate fit
 your profile   portals              Score & recommend
   |                |                     |
   v                v                     v
-Profile        Present matches      Draft CV + Cover Letter
-files ready    with fit ratings     (LaTeX, tailored)
-                   |                     |
-                   v                     v
-               Pick a match         Reviewer agent critiques
-               -> /apply            -> Revise -> Final output
+Profile        Present matches      Benchmark -> your draft
+files ready    with fit ratings     -> Gates A, B, C -> submit
 ```
 
 The framework encodes career guidance best practices, including structured evaluation criteria, forward-looking cover letter framing, and optional salary benchmarking.
@@ -32,8 +30,9 @@ The framework encodes career guidance best practices, including structured evalu
 
 - [Claude Code](https://claude.com/claude-code) (CLI)
 - Python 3.10+
-- [Bun](https://bun.sh) (for Danish job search CLI tools)
-- LaTeX distribution with `lualatex` and `xelatex`: [TeX Live](https://tug.org/texlive/) or [MiKTeX](https://miktex.org/). The CV compiles with `lualatex` (pdflatex often fails on modern MiKTeX installs with `fontawesome5` font-expansion errors); the cover letter compiles with `xelatex` because `cover.cls` requires `fontspec`.
+- Node 18+ and `npm install` (the `docx` package builds every document)
+- LibreOffice (`soffice`) to render DOCX to PDF, and `poppler-utils` for the PDF verifiers
+- [Bun](https://bun.sh) (for the Danish job search CLI tools, optional)
 
 ## Quick start
 
@@ -44,7 +43,13 @@ gh repo fork MadsLorentzen/ai-job-search --clone
 cd ai-job-search
 ```
 
-### 2. Install job search tools
+### 2. Install dependencies
+
+```bash
+npm install     # the docx package, used by every document builder
+```
+
+Optional, for the Danish job portal CLIs:
 
 ```bash
 cd .agents/skills/jobbank-search/cli && bun install && cd ../../../..
@@ -83,7 +88,7 @@ If the URL can't be fetched (some job portals block automated access), you can p
 /apply <paste the full job description here>
 ```
 
-This runs the full workflow: evaluate fit, draft CV + cover letter, review with a second agent, revise, and present the final output.
+This runs the full workflow: check the posting is live and you are eligible, build the benchmark and your benchmark-fit draft, reconcile every unverified claim with you, render and verify the PDF, then wait for your approval of that exact file before anything is uploaded.
 
 ## Other commands
 
@@ -94,77 +99,93 @@ This runs the full workflow: evaluate fit, draft CV + cover letter, review with 
 
 `/reset` is also available, see [Starting over](#starting-over) below.
 
+## Skills beyond the application itself
+
+Skills are folders of instructions under `.claude/skills/`. Ask for one by name, or let the assistant pick it up from context.
+
+| Skill | What it does |
+|---|---|
+| `daily-opportunities-tracker` | A daily digest of live opportunities: internships, fellowships, hackathons, research, competitions, events. Configure your sources and filters in its state file. |
+| `handshake-scan` | Sweeps your university's Handshake board for postings no public aggregator indexes, and folds them into the digest. Needs a logged-in browser. |
+| `warm-outreach` | Triage a contact, then draft a referral or networking message you actually approve before it is sent. |
+| `interview-prep` | Facts file, full prep pack, one-page desk sheet, scored drills, and a post-interview log that feeds back into the profile. |
+| `advice-intake`, `media-intake`, `mymind-intake` | Turn career advice, a talk or article, or your saved-content export into dated, indexed claims under `documents/playbook/` and `documents/library/`. |
+| `experience-capture` | A regular pass that asks narrow, artifact-anchored questions and writes new evidence into your profile and bullet bank. |
+| `consolidate-memory` | Periodic cleanup: merge duplicates, retire superseded facts, and keep each fact in exactly one home. |
+| `humanizer` | Strips the tells of AI-generated writing from a draft. |
+| `upskill` | Gap analysis between your profile and the postings you are tracking, with a study plan. |
+
+None of these skills assist during a live or recorded assessment, and none send a message or submit an application without your explicit approval.
+
 ## File structure
 
 ```
 ai-job-search/
-├── CLAUDE.md                          # Main candidate profile + workflow rules
+├── CLAUDE.md                          # Profile, rules, and the application pipeline
 ├── .claude/
-│   ├── commands/
-│   │   ├── apply.md                   # /apply workflow (drafter-reviewer)
-│   │   ├── setup.md                   # /setup onboarding (documents folder, CV import, or interview)
-│   │   ├── expand.md                  # /expand competency enrichment from documents and online presence
-│   │   └── reset.md                   # /reset wipe profile data or documents folder
-│   ├── skills/
-│   │   ├── job-application-assistant/  # Core application skill
-│   │   │   ├── SKILL.md               # Skill definition
-│   │   │   ├── 01-candidate-profile.md # Your education, experience, skills
-│   │   │   ├── 02-behavioral-profile.md# PI/DISC/personality assessment
-│   │   │   ├── 03-writing-style.md    # Tone, structure, do's and don'ts
-│   │   │   ├── 04-job-evaluation.md   # Scoring framework for job fit
-│   │   │   ├── 05-cv-templates.md     # LaTeX CV structure + tailoring rules
-│   │   │   ├── 06-cover-letter-templates.md # LaTeX cover letter templates
-│   │   │   └── 07-interview-prep.md   # STAR examples + interview framework
-│   │   ├── job-scraper/               # Job search orchestration
-│   │   └── upskill/                   # /upskill skill gap analysis and learning plan
-│   └── settings.local.json            # Claude Code permissions
+│   ├── commands/                      # /apply /setup /expand /reset
+│   ├── hooks/brevity-gate.py          # Stop hook: caps chat replies at 120 words
+│   ├── settings.json                  # Registers the hook
+│   └── skills/
+│       ├── job-application-assistant/ # Core application skill
+│       │   ├── SKILL.md               # Operational summary and file map
+│       │   ├── 01-candidate-profile.md through 07-interview-prep.md
+│       │   ├── 08-application-answers.md   # Short-answer and essay workflow
+│       │   ├── 09-resume-evidence-audit.md # Gate 0, Gate A, Gate B, Gate C
+│       │   ├── 10-house-style.md           # The one home for formatting rules
+│       │   └── 11-verification-checklist.md
+│       ├── daily-opportunities-tracker/    # Daily digest of live opportunities
+│       ├── handshake-scan/                 # University portal sweep
+│       ├── warm-outreach/                  # Networking and referral messages
+│       ├── interview-prep/                 # Facts file, drills, post-interview log
+│       ├── advice-intake/ media-intake/ mymind-intake/  # Capture advice and saved material
+│       ├── experience-capture/ consolidate-memory/      # Keep the profile current
+│       ├── humanizer/ upskill/ job-scraper/
+├── .codex/                            # Codex agent definitions
 ├── .agents/skills/                    # Job portal CLI tools (Denmark)
-│   ├── jobbank-search/                # Akademikernes Jobbank
-│   ├── jobdanmark-search/             # Jobdanmark.dk
-│   ├── jobindex-search/               # Jobindex.dk
-│   └── jobnet-search/                 # Jobnet.dk (government portal)
 ├── cv/
-│   └── main_example.tex               # moderncv LaTeX template
-├── cover_letters/
-│   ├── cover.cls                      # Custom cover letter LaTeX class
-│   └── OpenFonts/                     # Lato + Raleway fonts
-├── documents/                         # Career source materials for /setup Path A and /expand
-│   ├── README.md                      # Folder layout instructions
-│   ├── cv/                            # Master CV (PDF or .tex)
-│   ├── linkedin/                      # LinkedIn profile export (PDF)
-│   ├── diplomas/                      # Degree certificates and transcripts
-│   ├── references/                    # Reference letters
-│   └── applications/                  # Past application records (<company>_<role>/)
+│   ├── build_epsilon_lib.js           # Shared docx-js helpers (house style)
+│   ├── build_resume_example.js        # Format reference builder
+│   ├── candidate.example.json         # Identity template; copy to candidate.json
+│   ├── candidate_profile.py           # Loads that identity for the verifiers
+│   ├── verify_resume_layout.py        # Gate B: the rendered PDF
+│   ├── verify_gate0_provenance.py     # Gate A: claim provenance and hashes
+│   ├── verify_application_header.py   # Resume and cover letter headers match
+│   └── main_example.tex               # Legacy LaTeX template
+├── cover_letters/                     # Legacy LaTeX class and fonts
+├── documents/                         # Your material (git-ignored)
+│   ├── cv/ linkedin/ diplomas/ references/ applications/
+│   ├── private/                       # Approved answers, essay context, beliefs
+│   ├── playbook/                      # Career advice you saved, with an index
+│   ├── library/                       # Books, talks, and articles you captured
+│   └── portals/                       # One file per applicant tracking system
+├── opportunities/ interviews/ outreach/  # Workspace output (git-ignored)
 ├── salary_lookup.py                   # Salary benchmarking tool (BYO data)
-├── tools/
-│   ├── convert_salary_excel.py        # Convert salary Excel to JSON
-│   └── README_SALARY_TOOL.md          # Salary tool setup instructions
-├── job_scraper/                       # Scraper state (seen jobs, results)
-├── upskill/                           # /upskill report output (markdown reports per run)
 ├── job_search_tracker.csv             # Application tracking spreadsheet
 └── SETUP.md                           # Detailed setup guide
 ```
 
 ## How `/apply` works
 
-The `/apply` command runs a **drafter-reviewer workflow** with mandatory PDF compilation:
+`/apply` runs an **evidence-gated pipeline**. Each gate blocks the next step.
 
-1. **Parse** the job posting (URL or text)
-2. **Evaluate fit** against your profile (skills, experience, culture, location, career alignment)
-3. **Draft** a tailored CV and cover letter in LaTeX
-4. **Spawn a reviewer agent** that researches the company and critiques the drafts
-5. **Revise** based on the reviewer's feedback
-6. **Compile and inspect** both PDFs: lualatex for the CV, xelatex for the cover letter. Claude reads the rendered pages and iterates on the LaTeX until the CV is exactly 2 pages with no orphaned entry titles, and the cover letter is exactly 1 page with the signature visible and fonts consistent.
-7. **Present** the final output with a verification checklist
+1. **Liveness and eligibility.** Confirm the posting is open and that you formally qualify, before any tailoring.
+2. **Gate 0, the benchmark.** Build the resume a perfect candidate for this exact posting would have, labeled `DO NOT SUBMIT - HYPOTHETICAL BENCHMARK`, then a complete benchmark-fit draft of your own resume against it. Anything the draft asserts that your files do not yet support is tracked as `NEW CLAIM - UNVERIFIED` and the artifact is labeled `DO NOT SUBMIT - UNVERIFIED CLAIMS`.
+3. **Gate A, claim reconciliation.** You confirm, correct, tone down, or reject every unverified claim. `cv/verify_gate0_provenance.py` checks that each one carries a dated source and that the draft hash still matches.
+4. **Gate B, the rendered document.** The DOCX renders to PDF and `cv/verify_resume_layout.py` reads the PDF: page count, embedded fonts, reading order, contact line, bullet shape and density, paragraph spacing, orphans, section structure, and that the PDF is the fresh partner of that DOCX.
+5. **Page-value reconciliation.** The three strongest confirmed outcomes that did not make the page are named, with why each lost. A one-page render alone is not success.
+6. **Approval.** You approve one exact PDF. Anything unchecked is labeled `NOT CHECKED`.
+7. **Gate C, packet consistency.** The approved PDF is checked against every form field and any transcript, and each difference is disclosed before the Submit click, which needs its own approval.
 
-All claims in the CV and cover letter are verified against your actual profile. The system never fabricates skills or experience.
+All claims are traced to your own confirmed material. The system never fabricates skills, metrics, or experience.
 
 ### What makes this workflow different
 
-- **PDF verification loop.** Most LaTeX-resume templates produce "looks fine in the .tex" output that breaks in the PDF: job titles orphan to the next page, cover letters spill onto page 2, bullet fonts silently fall back to the body font. The `/apply` command compiles and visually inspects every PDF and applies targeted fixes (`\needspace`, `\enlargethispage`, font-matching wrappers for list items) until the layout is clean. This runs automatically on every application.
-- **Relevance-weighted CV cutting.** When a CV overflows 2 pages, the workflow does not cut mechanically from the "oldest" section. It scores each candidate line by (a) relevance to the target posting, (b) uniqueness in the document, and (c) whether the cover letter depends on it, and cuts the lowest-total-score line first. An older-role bullet that hits posting keywords survives ahead of a recent-role bullet that does not.
-- **Drafter-reviewer separation.** The drafter writes; a second Claude agent, spawned with a fresh context, researches the company and critiques the drafts. The drafter then revises. This catches missed keywords, weak framing, and generic language that a single pass often leaves in.
-- **Token-efficient reviewer dispatch.** The reviewer agent receives drafts inline rather than re-reading them, and the verification checklist runs once at the end of the workflow rather than being duplicated by both agents. Note: the new compile-and-inspect step in Step 5 spends some of those savings on PDF rendering and layout iteration — the workflow trades some end-to-end token cost for a real reduction in broken PDFs reaching the user.
+- **The benchmark comes first.** Writing the ideal candidate's resume before your own turns tailoring into a gap analysis instead of a guess, and it exposes the claims you would have to invent to compete. Those claims are surfaced for you to rule on rather than quietly written in.
+- **Verification reads the render, not the source.** "Looks fine in the `.docx`" is not a check. The verifier reads the PDF a recruiter would open, and a failure blocks the review gate.
+- **Unverified content is labeled, not deleted.** Benchmark and benchmark-fit artifacts carry `DO NOT SUBMIT` in the filename and on the page, so a draft cannot be mistaken for a deliverable.
+- **Memory is separated by kind.** Facts about you, approved bullet wording, form answers, portal mechanics, and application records each have exactly one home, so a correction lands in one place and is reused everywhere.
+- **The loop closes after submission.** Approved new claims land in your bullet bank, portal lessons land in the portal file, and the tracker records the exact file and hash that was sent.
 
 ## Customization
 
@@ -176,6 +197,7 @@ If you prefer editing files directly instead of using `/setup`:
 |------|---------------|
 | `CLAUDE.md` | Your full profile (name, education, experience, skills, goals) |
 | `01-candidate-profile.md` | Structured version of your CV data |
+| `cv/candidate.json` | Name, contact line, and school the builders and verifiers use |
 | `02-behavioral-profile.md` | Your behavioral assessment or self-assessment |
 | `04-job-evaluation.md` | Skill match areas, career goals, motivation filters |
 | `05-cv-templates.md` | Profile statement templates for different role types |
@@ -192,9 +214,11 @@ As your priorities evolve, you can reconfigure just the job search without re-ru
 
 This re-runs the search configuration interview: which roles to target, which skills to search for, which locations, and which portals. It also suggests role types you may not have considered based on your profile.
 
-### LaTeX templates
+### Document templates
 
-The CV uses [moderncv](https://ctan.org/pkg/moderncv) (banking style). The cover letter uses a custom `cover.cls` with Lato/Raleway fonts. You can replace these with your own templates; just update the guidance in `05-cv-templates.md` and `06-cover-letter-templates.md`.
+Documents are built by Node scripts using the [`docx`](https://www.npmjs.com/package/docx) package. `cv/build_epsilon_lib.js` holds the house-style helpers (fonts, spacing, bullets, header) and `cv/build_resume_example.js` shows the shape of a builder. Change the formatting in one place, `10-house-style.md`, and update the helpers to match; the verifiers enforce what that file says.
+
+The LaTeX templates (`cv/main_example.tex`, `cover_letters/cover.cls` with Lato/Raleway) are the earlier pipeline and still work, but the skills and verifiers target the DOCX pipeline.
 
 ### Job search tools
 

@@ -30,15 +30,20 @@ The Danish job portal CLIs are written in TypeScript and run with Bun:
 curl -fsSL https://bun.sh/install | bash
 ```
 
-### LaTeX (for compiling CVs and cover letters)
+### Node and LibreOffice (for building and rendering documents)
 
-Install a LaTeX distribution to compile the generated `.tex` files to PDF:
+Resumes and cover letters are built as `.docx` with the [`docx`](https://www.npmjs.com/package/docx) npm package and rendered to PDF with LibreOffice.
 
-- **Windows:** [MiKTeX](https://miktex.org/download)
-- **macOS:** [MacTeX](https://tug.org/mactex/)
-- **Linux:** `sudo apt install texlive-full` or `sudo dnf install texlive-scheme-full`
+```bash
+npm install                 # installs docx into the repo
+```
 
-The CV compiles with `lualatex` (pdflatex often fails on modern MiKTeX installs with `fontawesome5` font-expansion errors). The cover letter compiles with `xelatex` because `cover.cls` requires `fontspec` for its custom Lato/Raleway fonts.
+- **Windows / macOS:** install [LibreOffice](https://www.libreoffice.org/download/)
+- **Linux:** `sudo apt install libreoffice-writer poppler-utils`
+
+`poppler-utils` provides `pdftotext`, `pdffonts`, and `pdftotext -bbox`, which `cv/verify_resume_layout.py` uses to check the rendered PDF. Install them wherever you run the verifier.
+
+The LaTeX templates under `cv/main_example.tex` and `cover_letters/` are the earlier pipeline. They still work if you prefer LaTeX, but the skills, the house style, and the verifiers all target the DOCX pipeline.
 
 ## 2. Fork and clone
 
@@ -88,7 +93,7 @@ Both paths produce the same result: fully populated profile files.
 | `04-job-evaluation.md` | Personalized skill match areas and career goals |
 | `05-cv-templates.md` | Profile statement templates for your background |
 | `07-interview-prep.md` | STAR examples from your experience |
-| `cv/main_example.tex` | Your LaTeX CV with actual details |
+| `cv/candidate.json` | Identity the document builders and verifiers read (git-ignored) |
 | `search-queries.md` | Job search queries for `/scrape` |
 
 ### Re-running setup
@@ -137,16 +142,22 @@ Claude will:
 4. Have a reviewer agent critique the drafts
 5. Revise and present the final output
 
-## 7. Compile your documents
+## 7. Build, render, and verify your documents
 
-After `/apply` creates the LaTeX files:
+`/apply` writes a Node builder per application. Run it, render the PDF, then verify the exact pair:
 
 ```bash
-# Compile CV
-cd cv && lualatex main_<company>.tex && cd ..
+node cv/build_<company>.js
+soffice --headless --convert-to pdf --outdir cv "cv/<file>.docx"
+python3 cv/verify_resume_layout.py "cv/<file>.pdf" --docx "cv/<file>.docx"
+```
 
-# Compile cover letter
-cd cover_letters && xelatex cover_<company>_<role>.tex && cd ..
+`cv/build_resume_example.js` is the format reference: copy its structure, not its placeholder content. The verifier checks page count, fonts, reading order, bullet shape and density, spacing, orphans, and that the PDF is the freshly rendered partner of that DOCX. A failure blocks review; do not hand-edit the PDF.
+
+To check that a cover letter header matches its resume exactly:
+
+```bash
+python3 cv/verify_application_header.py "cv/<resume>.pdf" "cv/<cover letter>.pdf"
 ```
 
 ## Troubleshooting
@@ -157,10 +168,14 @@ This is expected if you haven't set up salary benchmarking. The `/apply` workflo
 ### Job search CLI tools not working
 Make sure Bun is installed and you ran `bun install` in each CLI directory. The tools require network access to fetch job listings.
 
-### LaTeX compilation errors
-- CV: uses `lualatex` (pdflatex often fails on modern MiKTeX with `fontawesome5` font-expansion errors; lualatex handles the same sources cleanly)
-- Cover letter: uses `xelatex` (for custom fonts in `OpenFonts/fonts/`)
-- Make sure your LaTeX distribution includes the `moderncv` package
+### "Candidate profile not found" from a verifier
+Copy `cv/candidate.example.json` to `cv/candidate.json` and fill it in, or run `/setup`. `cv/candidate.json` is git-ignored so your contact details never enter history. Set `CANDIDATE_PROFILE` to verify a packet built for a different profile.
 
-### Fonts not found in cover letter
-The cover letter template expects fonts in `cover_letters/OpenFonts/fonts/`. Make sure this directory exists and contains the Lato and Raleway font files.
+### `soffice: command not found`
+Install LibreOffice and make sure `soffice` is on your PATH. On macOS it lives at `/Applications/LibreOffice.app/Contents/MacOS/soffice`.
+
+### The verifier reports a missing-glyph or font failure
+Render through LibreOffice rather than exporting from Word or Google Docs, and keep the document in Times New Roman. A replacement character in the extracted text means the reader will see a missing glyph too.
+
+### Replies from Claude keep getting blocked as too long
+That is `.claude/hooks/brevity-gate.py`, a Stop hook capping replies at 120 words and 14 lines with no tables. Change the caps in that file, or remove the hook from `.claude/settings.json`.

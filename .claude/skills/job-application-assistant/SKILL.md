@@ -1,41 +1,38 @@
 # Job Application Assistant
 
 **name:** job-application-assistant
-**description:** Assists with job applications: evaluating job postings, tailoring CVs, writing cover letters, and preparing for interviews. Triggers on keywords like: job posting, job application, CV, cover letter, resume, interview prep, job fit, career, application, apply, ansøgning, stilling
-**allowed-tools:** Read, Glob, Grep, WebFetch, WebSearch, Edit, Write, AskUserQuestion
+**description:** Runs the end-to-end application pipeline: research a posting, aggressively tailor a one-page `.docx` resume and a human-voiced cover letter, verify formatting, auto-apply through the browser after approval, and feed approved new bullets back into the bullet bank. Triggers on keywords like: job posting, job application, CV, cover letter, resume, tailor, apply, auto-apply, job fit, career. For anything about preparing for, practicing for, or logging an interview or assessment, use the **interview-prep** skill instead; this skill only supplies the content it draws on.
+**allowed-tools:** Read, Glob, Grep, WebFetch, WebSearch, Edit, Write, AskUserQuestion, mcp__claude-in-chrome__navigate, mcp__claude-in-chrome__get_page_text, mcp__claude-in-chrome__computer, mcp__claude-in-chrome__find, mcp__claude-in-chrome__form_input, mcp__claude-in-chrome__file_upload, mcp__claude-in-chrome__read_page, mcp__claude-in-chrome__tabs_context_mcp, mcp__claude-in-chrome__list_connected_browsers, mcp__claude-in-chrome__select_browser
 
 ---
 
-## Workflow
+## Authoritative spec
 
-When the user provides a job posting (URL or text), follow this workflow:
+The full pipeline lives in the repo's `CLAUDE.md` under **Application Pipeline** (intensity levels, the end-to-end motion, the anti-fabrication guardrail, the Learning Loop, and the persistent-data files). That section is the source of truth. This file is the quick operational summary; if the two ever disagree, CLAUDE.md wins.
 
-### Step 1: Research & Evaluate Fit
-- Fetch the job posting content (use WebFetch for URLs)
-- Analyze the posting for required competencies, keywords, and priorities
-- Research the company (website, LinkedIn, mission, recent news)
-- Score the posting against the candidate's profile using the framework in `04-job-evaluation.md`
-- Present the evaluation table and verdict
-- Suggest whether the candidate should call the employer before applying (see `04-job-evaluation.md` for guidance)
-- Ask the user if they want to proceed with an application
+**Default intensity is Aggressive:** the separately labeled benchmark-fit draft should be hypothesis-rich and may introduce plausible new metrics, technologies, responsibilities, scope, causal relationships, and outcomes for the candidate's real roles when the evidence bank appears incomplete. Track every one as `NEW CLAIM - UNVERIFIED`. After the user confirms, corrects, tones down, or rejects them, the production resume may retain only the confirmed or corrected claims. Approved new claims are saved to the approved-bullets ledger.
 
-### Step 2: Tailor CV
-- Read the most relevant existing CV variant from `cv/` as a starting point
-- Follow the guidelines in `05-cv-templates.md`
-- Create `cv/main_<company>.tex` with tailored content
-- Adjust: profile statement, skills section, experience bullet emphasis, section order
+**Mandatory Gate 0, perfect benchmark followed by the candidate's benchmark-fit resume:** For every job application, build and present a complete, job-specific perfect benchmark resume, then immediately build and present a complete benchmark-fit resume before asking clarification questions. The user does not need to request either resume. The benchmark artifact and filename must say `DO NOT SUBMIT - HYPOTHETICAL BENCHMARK`. Present the whole benchmark first, then the user's strongest plausible one-page resume matching the benchmark's role selection, section order, bullet emphasis, skills coverage, ATS language, and density. The first the user draft may include plausible new metrics, technologies, responsibilities, scope, causal relationships, and outcomes for the candidate's real roles. Track each as `NEW CLAIM - UNVERIFIED`, save the artifact under `Benchmark-Fit Draft - DO NOT SUBMIT`, and visibly label it `DO NOT SUBMIT - UNVERIFIED CLAIMS`. Only after both resumes are shown should the correction map and evidence questions begin. `UNCHECKED` evidence does not block the first complete candidate draft, but it blocks Gate A, exact-file approval, upload, and submission. Neither the benchmark nor the unverified benchmark-fit draft may be uploaded or submitted.
 
-### Step 3: Write Cover Letter
-- Follow the writing style rules in `03-writing-style.md` (critical: no em-dashes, no cliches)
-- Follow the template structure in `06-cover-letter-templates.md`
-- Create `cover_letters/cover_<company>_<role>.tex`
-- Ensure the letter connects specific experience to the role requirements
+**Default-yes Gate 0 completeness rule:** Before the first clarification, assume **YES for hypothesis generation only** for every unresolved high-value posting signal that plausibly maps to a real role or project. Fill in reasonable, specific metrics, tools, scope, responsibilities, causal relationships, and outcomes as polished claims, and track every invented element as `NEW CLAIM - UNVERIFIED`. Do not omit a role-critical signal or save it for a later question because the evidence bank is incomplete. Known confirmed falsehoods remain excluded. Build, render, visually inspect, and show both complete Gate 0 resumes before returning to the user or presenting the correction map.
 
-### Step 4: Interview Preparation
-- Follow the framework in `07-interview-prep.md`
-- Prepare STAR-format answers for likely questions
-- Identify role-specific talking points
-- Draft questions the candidate should ask the interviewer
+**Gate 0 confirmation provenance, blocking:** Keep all previously approved evidence approved and do not ask the user to reconfirm it. A prior fact satisfies a new hypothesis only when it explicitly supports every added number, tool, responsibility, causal link, scope, and outcome. Related evidence is not approval of new specifics, and no agent-authored report or status label counts as user confirmation. Each hypothesis row must name a dated direct the user response or a uniquely identified `documents/cv/approved-bullets.md` entry. Run `python3 cv/verify_gate0_provenance.py <companion-map> --draft <benchmark-fit-draft>` before Gate A or Gate B can pass. A new or changed benchmark-fit draft invalidates Gate A, Gate B, and prior exact-PDF approval. The exact-posting fast path also requires a passing provenance check and an unchanged production PDF hash. Report confirmed-as-written, corrected, rejected, and unresolved counts; any unresolved item blocks upload and submission.
+
+**Lightweight default execution budget:** Keep the gates, compress the work. Use one targeted posting and official-company research pass; start from the closest one or two approved resumes for the same reader mode and function; use targeted evidence searches; ask the 2-4 highest-value questions together; make one production revision batch; batch semantic fixes before one final render, one reader-mode check, and one mechanical verification. Extra research or rerenders require a concrete blocker. Store the complete Gate A/B report and recruiter term census in the application folder, then give the user a compact chat summary with the exceptions, blockers, packet differences, exact PDF, and audit link. Do not repeat every passing row in chat.
+
+## Workflow (run the whole thing unless the user asks for one step)
+
+1. **Intake.** Take the link or pasted text. Open links in the browser (Claude in Chrome) when WebFetch is not enough (JS portals, logged-in boards).
+2. **Research.** Read the full posting and employer's official page, verify any company-specific claim, and extract required skills + ATS keywords. Use more sources only for a concrete unstable fact, eligibility question, or packet claim. Choose `RECRUITER-FIRST` or `TECHNICAL-READER` using the binding criteria in `09-resume-evidence-audit.md`; uncertainty defaults to `TECHNICAL-READER`.
+3. **Perfect benchmark, mandatory Gate 0.** Build and show the complete one-page `DO NOT SUBMIT - HYPOTHETICAL BENCHMARK` resume for the exact role. Show it in full first, without corrections or caveats interleaved.
+4. **Build the candidate's benchmark-fit resume before clarification.** Search the master bullet bank, approved-bullets ledger, candidate profile, and permitted project evidence. Build and show a complete one-page candidate resume using the benchmark as the default design target. Where the files appear incomplete, include plausible new metrics, technologies, responsibilities, scope, causal relationships, and outcomes for the candidate's real roles. Write them as polished claims, track each as `NEW CLAIM - UNVERIFIED`, and visibly label the separate artifact `DO NOT SUBMIT - UNVERIFIED CLAIMS`. Do not ask evidence-gap questions or present the correction map until this resume is complete and shown.
+5. **Post-draft fit check and evidence-gap interview.** Complete Gate A in `09-resume-evidence-audit.md` by comparing the two complete resumes. Build the correction and evidence maps, then ask 2-4 pointed questions per round for every high-value requirement or likely bullet missing a metric or verifiable artifact. A stack or responsibility without a Y is still an evidence gap. A role-critical skill shown only in Skills must trigger an evidence search, bullet rewrite, or targeted question; if it remains `KEYWORD ONLY`, it cannot count as qualification coverage. Trigger the conditional internship collaboration row when the posting calls for it. `UNCHECKED` evidence does not block the first complete candidate draft. It blocks Gate A, exact-file approval, upload, and submission.
+6. **Refine (Aggressive).** Incorporate confirmed answers and revise the one-page `.docx` resume (two pages only under the federal exception in CLAUDE.md) in the user's House Style (`10-house-style.md`) so it fits the benchmark as closely as the confirmed evidence permits. Pull and rewrite bullets from `documents/cv/<Your Name> - MASTER Bullet Bank.docx` (your own bullet bank, created at setup) and `documents/cv/approved-bullets.md`. Reorder sections, skills, and bullets to lead with what the job wants. Write a cover letter only when warranted, in the user's voice per `03-writing-style.md`, then humanize it. Save to `cv/<Your Name> - <Company>.docx` and `cover_letters/` when applicable.
+7. **Verify.** Run Gate B in `09-resume-evidence-audit.md`, the full Verification Checklist in `11-verification-checklist.md`, and `cv/verify_resume_layout.py <pdf> --docx <docx>` on the exact canonical pair (add `--pages 2` only for a federal USAJOBS application). For `RECRUITER-FIRST`, make an exact posting whitelist, build a provisional term census from the source, review judgment-bearing exceptions, and batch every wording fix before the final render. Then render once, reconcile the census against extracted final-PDF text, perform one top-third and first-clause semantic read, and run the mechanical verifier. Gate B must audit posting coverage against the rendered resume, apply the selected first-reader mode, and enforce any triggered internship collaboration row. A mismatched or stale PDF/DOCX pair, non-single paragraph spacing, dedicated symbol font, one-bullet entry, excessive bottom whitespace, stronger omitted evidence, unexpected rendered font, unembedded font, missing Unicode mapping, broken extracted reading order, unchanged `GENERALIZE`/`EXPLAIN`/`REMOVE` wording, or unsupported `KEEP` is a blocking failure. A standalone Honors/Awards section is allowed only when it is compact, non-duplicative, role-relevant, and earns its page space. A one-page render alone is not a pass.
+8. **Review gate.** Save the complete required report in the application folder. Present the first benchmark-fit resume and a compact review containing the dispositions of every `NEW CLAIM - UNVERIFIED`, selected first-reader mode, changed or disputed recruiter terms, every unresolved `TRUE GAP`, `UNMEASURED`, or `KEYWORD ONLY` blocker, packet differences, verifier result, exact PDF path, and a link to the complete audit. Anything not checked must be labeled `NOT CHECKED`; do not repeat every passing audit row in chat.
+9. **Auto-apply.** Do not upload a resume before the user approves the exact Gate-B-passing PDF. Never upload a file whose name or contents contain `DO NOT SUBMIT` or `HYPOTHETICAL BENCHMARK`. Then complete Gate C against the exact attached PDF, every form field, and the transcript. Show the user every intentional `PACKET DIFFERENCE`; later contradictory form edits require new approval. A failed upload attempt does not prove file-upload permission is disabled unless the current setting was directly inspected. Submit only when no unexplained contradiction remains. Log the exact uploaded resume path, account email, graduation year, and approved packet differences.
+10. **Learn before closeout.** After direct portal confirmation and before reporting submission success, run the mandatory post-submission learning audit across the full interaction. Update approved answers, essay context, writing-style memory, approved resume claims, candidate and application profiles, the application record, and `job_search_tracker.csv` as applicable. If no update is needed, explicitly report that the audit ran and found nothing new.
+11. **Outreach (default yes).** After submitting, run the **warm-outreach** skill for the company (alumni from the candidate's school first, then recruiters, then the hiring team) unless the user declines or no reachable human exists. A submitted application with no human attached to it sits in arrival order behind everyone else's. Skip it only for large centralized pipelines where a cold message provably does not reach a decision maker.
 
 ---
 
@@ -45,19 +42,25 @@ When the user provides a job posting (URL or text), follow this workflow:
 |------|---------|
 | `01-candidate-profile.md` | Education, experience, skills, publications, awards |
 | `02-behavioral-profile.md` | Behavioral assessment, strengths, ideal environments |
-| `03-writing-style.md` | Tone, structure, do's and don'ts |
+| `03-writing-style.md` | Tone, structure, do's and don'ts (no em-dashes, human voice) |
 | `04-job-evaluation.md` | Scoring framework for job fit |
-| `05-cv-templates.md` | LaTeX CV structure and tailoring rules |
-| `06-cover-letter-templates.md` | LaTeX cover letter structure and tailoring rules |
-| `07-interview-prep.md` | STAR examples, tough questions, roleplay guidelines |
+| `05-cv-templates.md` | Career-guide resume rules not restated in `10-house-style.md`, section tailoring, page budget, and relevance-weighted cutting. The formatting spec itself is `10-house-style.md`, built with `cv/build_epsilon_lib.js` |
+| `06-cover-letter-templates.md` | Cover letter structure and tailoring rules |
+| `07-interview-prep.md` | Interview content library: story bank, recurring tough questions, questions to ask. The interview *workflow* is a separate skill, `.claude/skills/interview-prep/` |
+| `08-application-answers.md` | First-person application answers: stories from `essay-context.md`, register per `03-writing-style.md`, humanizer pass, and the answer learning loop |
+| `09-resume-evidence-audit.md` | Mandatory benchmark-fit draft, post-draft evidence discovery, bullet audit, and exact packet consistency gates |
+| `10-house-style.md` | The House Style Spec (font, header, education layout, skills, bullets, spacing, margins) and the concrete build, convert and verify commands. |
+| `11-verification-checklist.md` | The full verification checklist for step 7: factual accuracy, targeting, career-guide format rules, adversarial recruiter audit, exact packet gate, compiled PDF checks. |
+
+External references worth honoring: **your school or career center's guide** (save it under `documents/references/`) for resume/cover-letter rules, and the single-column, action-verb structure popularized by "Jake's Resume" (already largely reflected in the house style).
 
 ---
 
 ## Quick Commands
 
-The user may also ask for individual steps without the full workflow:
-- "Evaluate this job posting" - Step 1 only
-- "Write a CV for [company]" - Step 2 only
-- "Write a cover letter for [role] at [company]" - Step 3 only
-- "Help me prepare for an interview at [company]" - Step 4 only
-- "What jobs should I look for?" - Career strategy discussion using profile + evaluation framework
+The user may also ask for individual steps:
+- "Evaluate this job posting" - Steps 1-3 only
+- "Tailor a resume for [company]" - Steps 3-8 unless the user explicitly narrows the request
+- "Write a cover letter for [role] at [company]" - Step 6 (cover letter) only
+- "Apply to this for me" - starts at mandatory Gate 0 unless the exact posting has a completed benchmark correction loop, a passing provenance check, and a production PDF whose SHA-256 matches the user's exact-file approval, then runs Step 9
+- "Help me prepare for an interview at [company]" - hand off to the **interview-prep** skill (`.claude/skills/interview-prep/SKILL.md`), which owns the whole interview pipeline. This skill's `07-interview-prep.md` supplies the content it draws on.

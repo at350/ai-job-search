@@ -1,0 +1,17 @@
+{
+  "name": "Your Name",
+  "location": "City, ST",
+  "email": "your.email@example.com",
+  "phone": "(555) 555-5555",
+  "linkedin": "linkedin.com/in/your-handle",
+  "linkedin_url": "https://www.linkedin.com/in/your-handle/",
+  "github": "github.com/your-handle",
+  "github_url": "https://github.com/your-handle",
+  "school": "Your University",
+  "pinned_sections": {
+    "Example Corp": [
+      "Professional Experience",
+      "Work History"
+    ]
+  }
+}
